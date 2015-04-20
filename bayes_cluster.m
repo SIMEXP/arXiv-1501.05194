@@ -6,6 +6,8 @@ function [Z,logprob] = bayes_cluster(data,opt)
 % OPT.FLAG_CORR (boolean, default false) 
 %   false: use covariance.
 %   true: use correlation. 
+% OPT.FLAG_BIC (boolean, default false) if true, use the Bayesian information
+%   criterion (BIC) approximation of the log-likelihood.
 % OPT.NU0 (scalar, default p+1) the NU0 parameter for the a priori distribution.
 % OPT.LAMBDA0 (array p x p, default identity matrix) 
 %   The LAMBDA0 parameter of the a priori distribution. 
@@ -26,9 +28,9 @@ function [Z,logprob] = bayes_cluster(data,opt)
 % NOTE: the clustering model is based on an assumption of a multivariate Gaussian
 % distribution with independent and identically distributed samples, and a zero 
 % covariance between variables belonging to different clusters.
-% NOTE 2: this code implements the 'BayesCov' and 'BayesCorr' methods (depending
-%   on OPT.FLAG_CORR) described in the following paper http://arxiv.org/abs/1501.05194
-% NOTE 3: the output Z is formatted like in the function LINKAGE. 
+% NOTE 2: this code implements the 'BIC' 'BayesCov' and 'BayesCorr' methods 
+%   described in the manuscript http://arxiv.org/abs/1501.05194
+% NOTE 3: the output HIER is formatted like the output Z of the function linkage. 
 %   Use DENDROGAM to visualize the hierarchy, and CLUSTER to extract a partition.
 %   All these functions are part of the statistics toolbox.
 %
@@ -65,6 +67,11 @@ end
 % flag to switch between covariance and correlation
 if ~isfield(opt,'flag_corr')
     opt.flag_corr = false;
+end
+
+% flag to use the BIC approximation
+if ~isfield(opt,'flag_bic')
+    opt.flag_bic = false;
 end
 
 % parameter nu0 of the a priori distribution
@@ -104,7 +111,7 @@ part = 1:nb_var; % the partition, into
 % The sum of diagonal log-likelihood
 logp = zeros(1,nb_var);
 for num_v = 1:nb_var
-    logp(num_v) = sub_loglikelihood(squeeze(SS(num_v,num_v)),nb_ech,opt.nu0-(nb_var-1),opt.lambda0(num_v,num_v));
+    logp(num_v) = sub_loglikelihood(squeeze(SS(num_v,num_v)),nb_ech,opt.nu0-(nb_var-1),opt.lambda0(num_v,num_v),opt.flag_bic);
 end
 logprob = zeros(1,nb_iter_max+1);
 logprob(1) = sum(logp);
@@ -120,7 +127,7 @@ for num_v1 = 1:nb_var % Loop over variables
         nb_elem = length(gr);
         SSgr = SS(gr,gr);
         % Compute differences between log-likelihoods
-        logq(num_v1,num_v2) = sub_loglikelihood(SSgr,nb_ech,opt.nu0-(nb_var-nb_elem),opt.lambda0(gr,gr))-logp(num_v1)-logp(num_v2);
+        logq(num_v1,num_v2) = sub_loglikelihood(SSgr,nb_ech,opt.nu0-(nb_var-nb_elem),opt.lambda0(gr,gr),opt.flag_bic)-logp(num_v1)-logp(num_v2);
     end
 end
 
@@ -176,7 +183,7 @@ for num_i = 1:nb_iter_max
         SSgr = SS(gr,gr,:);
             
         % difference of log probability
-        logq(gr1max,list_var == num_g2) = sub_loglikelihood(SSgr,nb_ech,opt.nu0-(nb_var-nb_elem),opt.lambda0(gr,gr))-logp(gr1max)-logp(list_var == num_g2);
+        logq(gr1max,list_var == num_g2) = sub_loglikelihood(SSgr,nb_ech,opt.nu0-(nb_var-nb_elem),opt.lambda0(gr,gr),opt.flag_bic)-logp(gr1max)-logp(list_var == num_g2);
     end
     logq(:,gr1max) = logq(gr1max,:)';
     logq(:,gr2max) = -Inf;
@@ -198,15 +205,23 @@ for num_i = 1:nb_iter_max
 end
 
 %% Arrange hier according to matlab's conventions
-hier = hier(:,[2 3 1]);
+Z = hier(:,[2 3 1]);
 
 %% Marginal log-likelihood function
-function llh = sub_loglikelihood(SS,nb_ech,nu0,lambda0)
+function llh = sub_loglikelihood(SS,nb_ech,nu0,lambda0,flag_bic)
 
-nb_var = size(SS,1);
-vpL0 = eig(lambda0);
-nu = nu0+nb_ech-1;
-vpL = eig(lambda0+SS);
+if flag_bic
+    nb_var = size(SS,1);
+    vpS = eig(SS);
 
-lnh = 0.5*(nb_ech-1)*nb_var*log(2)+sum(gammaln((nu+1-(1:nb_var))/2))-sum(gammaln((nu0+1-(1:nb_var))/2))+nu0/2*sum(log(vpL0))-nu/2*sum(log(vpL));
-llh = lnh/log(10);
+    lnh = -0.5*(nb_ech-1)*sum(log(vpS))-nb_var*(nb_var+1)/2*log(nb_ech);
+    llh = lnh/log(10);
+else
+    nb_var = size(SS,1);
+    vpL0 = eig(lambda0);
+    nu = nu0+nb_ech-1;
+    vpL = eig(lambda0+SS);
+
+    lnh = 0.5*(nb_ech-1)*nb_var*log(2)+sum(gammaln((nu+1-(1:nb_var))/2))-sum(gammaln((nu0+1-(1:nb_var))/2))+nu0/2*sum(log(vpL0))-nu/2*sum(log(vpL));
+    llh = lnh/log(10);
+end
