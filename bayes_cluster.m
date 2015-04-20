@@ -1,6 +1,6 @@
-function [logprob, hier] = bayes_cluster(data,opt)
+function [Z,logprob] = bayes_cluster(data,opt)
 % Hierarchical clustering based on Bayesian model comparison
-% SYNTAX: [ LOGPROB , HIER]= BAYES_CLUSTER ( DATA , [OPT] )
+% SYNTAX: [ Z , LOGPROB ] = BAYES_CLUSTER ( DATA , [OPT] )
 %
 % DATA array ( n x p ) n observations drawn from p variables.
 % OPT.FLAG_CORR (boolean, default false) 
@@ -10,25 +10,25 @@ function [logprob, hier] = bayes_cluster(data,opt)
 % OPT.LAMBDA0 (array p x p, default identity matrix) 
 %   The LAMBDA0 parameter of the a priori distribution. 
 %
-% LOGPROB (vector) the log probability of the model for the different levels 
-%   of the hierarchy
-% HIER (2D array) defining a hierarchy :
+% Z (2D array) defining a hierarchy :
 %   Column 1: Entity no x
 %   Column 2: joining entity no y
 %   Column 3: Level of new link
+% LOGPROB (vector) the log probability of the model for the different levels 
+%   of the hierarchy
 %
 % EXAMPLE:
 % data = [repmat(randn(100,1),[1 10])+randn(100,10) ...
 %         repmat(randn(100,1),[1 10])+randn(100,10) ...
 %         repmat(randn(100,1),[1 10])+randn(100,10) ];
-% [logprob,hier] = bayes_cluster(data);
+% [Z,logprob] = bayes_cluster(data);
 % 
 % NOTE: the clustering model is based on an assumption of a multivariate Gaussian
 % distribution with independent and identically distributed samples, and a zero 
 % covariance between variables belonging to different clusters.
 % NOTE 2: this code implements the 'BayesCov' and 'BayesCorr' methods (depending
 %   on OPT.FLAG_CORR) described in the following paper http://arxiv.org/abs/1501.05194
-% NOTE 3: the output HIER is formatted like the output Z of the function linkage. 
+% NOTE 3: the output Z is formatted like in the function LINKAGE. 
 %   Use DENDROGAM to visualize the hierarchy, and CLUSTER to extract a partition.
 %   All these functions are part of the statistics toolbox.
 %
