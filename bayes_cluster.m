@@ -30,9 +30,9 @@ function [Z,logprob] = bayes_cluster(data,opt)
 % covariance between variables belonging to different clusters.
 % NOTE 2: this code implements the 'BIC' 'BayesCov' and 'BayesCorr' methods 
 %   described in the manuscript http://arxiv.org/abs/1501.05194
-% NOTE 3: the output HIER is formatted like the output Z of the function linkage. 
+% NOTE 3: the output Z is formatted like in the function linkage.
 %   Use DENDROGAM to visualize the hierarchy, and CLUSTER to extract a partition.
-%   All these functions are part of the statistics toolbox.
+%   These functions are part of the statistics toolbox.
 %
 % Copyright (c) Guillaume Marrelec, Laboratoire d'imagerie fonctionnelle,
 % Inserm, France, 2015.
