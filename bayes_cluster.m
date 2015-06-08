@@ -1,11 +1,13 @@
-function [Z,logprob] = bayes_cluster(mat,nb_ech,flag_bic)
+function [Z,logprob] = bayes_cluster(mat,nb_ech,flag)
 % Hierarchical clustering based on Bayesian model comparison
-% SYNTAX: [ Z , LOGPROB ] = BAYES_CLUSTER ( MAT , NB_ECH , [OPT] )
+% SYNTAX: [ Z , LOGPROB ] = BAYES_CLUSTER ( MAT , NB_ECH , [FLAG] )
 %
 % MAT (matrix, size p x p) either a covariance or correlation matrix.
 % NB_ECH (integer) the number of samples used to derive MAT. 
-% FLAG_BIC (boolean, default false) if true, use the Bayesian information
+% FLAG.BIC (boolean, default false) if true, use the Bayesian information
 %   criterion (BIC) approximation of the log-likelihood.
+% FLAG.COR (boolean, default true) if true, apply priors for correlation
+%   matrices, otherwise use priors for covariance matrices.
 %
 % Z (2D array) defining a hierarchy :
 %   Column 1: Entity no x
@@ -33,8 +35,8 @@ function [Z,logprob] = bayes_cluster(mat,nb_ech,flag_bic)
 % NOTE 4: if the matrix has only ones of the diagonal, the matrix is assumed to be 
 % a correlation matrix, otherwise it is treated as a covariance matrix.
 %
-% Copyright (c) Guillaume Marrelec, Laboratoire d'imagerie fonctionnelle,
-% Inserm, France, 2015.
+% Copyright (c) Guillaume Marrelec, Sorbonne Universits, UPMC Univ Paris 06, CNRS, 
+% INSERM, Laboratoire dImagerie Biomdicale, F-75013, Paris, France
 % Maintainer: marrelec@imed.jussieu.fr
 % See licensing information in the code.
 % Keywords: clustering, Bayesan model, Gaussian
@@ -57,9 +59,25 @@ function [Z,logprob] = bayes_cluster(mat,nb_ech,flag_bic)
 % OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 % THE SOFTWARE.
 
+%% options
+if nargin < 3
+    flag = struct;
+end
+
+if isfield ( flag , 'corr' )
+    flag_corr = flag.corr;
+else 
+    flag_corr = true;
+end
+
+if isfield(flag,'bic')
+    flag_bic = flag.bic;
+else 
+    flag_bic = false;
+end
+
 %% the sum of squares
 SS = (nb_ech-1)*mat;
-flag_corr  = min(diag(mat)==1);
 
 %% The hyper-parameters
 nb_var = size(mat,1);
