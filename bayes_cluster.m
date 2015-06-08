@@ -1,16 +1,11 @@
-function [Z,logprob] = bayes_cluster(data,opt)
+function [Z,logprob] = bayes_cluster(mat,nb_ech,flag_bic)
 % Hierarchical clustering based on Bayesian model comparison
-% SYNTAX: [ Z , LOGPROB ] = BAYES_CLUSTER ( DATA , [OPT] )
+% SYNTAX: [ Z , LOGPROB ] = BAYES_CLUSTER ( MAT , NB_ECH , [OPT] )
 %
-% DATA array ( n x p ) n observations drawn from p variables.
-% OPT.FLAG_CORR (boolean, default false) 
-%   false: use covariance.
-%   true: use correlation. 
-% OPT.FLAG_BIC (boolean, default false) if true, use the Bayesian information
+% MAT (matrix, size p x p) either a covariance or correlation matrix.
+% NB_ECH (integer) the number of samples used to derive MAT. 
+% FLAG_BIC (boolean, default false) if true, use the Bayesian information
 %   criterion (BIC) approximation of the log-likelihood.
-% OPT.NU0 (scalar, default p+1) the NU0 parameter for the a priori distribution.
-% OPT.LAMBDA0 (array p x p, default identity matrix) 
-%   The LAMBDA0 parameter of the a priori distribution. 
 %
 % Z (2D array) defining a hierarchy :
 %   Column 1: Entity no x
@@ -23,16 +18,20 @@ function [Z,logprob] = bayes_cluster(data,opt)
 % data = [repmat(randn(100,1),[1 10])+randn(100,10) ...
 %         repmat(randn(100,1),[1 10])+randn(100,10) ...
 %         repmat(randn(100,1),[1 10])+randn(100,10) ];
-% [Z,logprob] = bayes_cluster(data);
+% mat = corr(data);
+% [Z,logprob] = bayes_cluster(mat,100);
+% dendrogram(Z)
 % 
 % NOTE: the clustering model is based on an assumption of a multivariate Gaussian
 % distribution with independent and identically distributed samples, and a zero 
 % covariance between variables belonging to different clusters.
 % NOTE 2: this code implements the 'BIC' 'BayesCov' and 'BayesCorr' methods 
 %   described in the manuscript http://arxiv.org/abs/1501.05194
-% NOTE 3: the output HIER is formatted like the output Z of the function linkage. 
+% NOTE 3: the output Z is formatted like in the function linkage. 
 %   Use DENDROGAM to visualize the hierarchy, and CLUSTER to extract a partition.
-%   All these functions are part of the statistics toolbox.
+%   These functions are part of the statistics toolbox.
+% NOTE 4: if the matrix has only ones of the diagonal, the matrix is assumed to be 
+% a correlation matrix, otherwise it is treated as a covariance matrix.
 %
 % Copyright (c) Guillaume Marrelec, Laboratoire d'imagerie fonctionnelle,
 % Inserm, France, 2015.
@@ -58,46 +57,23 @@ function [Z,logprob] = bayes_cluster(data,opt)
 % OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 % THE SOFTWARE.
 
-%% Setting up defaults
+%% the sum of squares
+SS = (nb_ech-1)*mat;
+flag_corr  = min(diag(mat)==1);
 
-if ~exist('opt','var')
-    opt = struct();
-end
-
-% flag to switch between covariance and correlation
-if ~isfield(opt,'flag_corr')
-    opt.flag_corr = false;
-end
-
-% flag to use the BIC approximation
-if ~isfield(opt,'flag_bic')
-    opt.flag_bic = false;
-end
-
-% parameter nu0 of the a priori distribution
-if ~isfield(opt,'nu0')
-    opt.nu0 = [];
-end
-
-if isempty(opt.nu0)
-    opt.nu0 = size(data,2)+1;
-end
-
-% parameter lambda0 of the a priori distribution
-if ~isfield(opt,'lambda0')
-    opt.lambda0 = [];
-end
-
-if isempty(opt.lambda0)
-    opt.lambda0 = eye(size(data,2));
-end
-
-%% Generation of the covariance (or correlation) matrix
-[nb_ech,nb_var] = size(data);
-if opt.flag_corr
-    SS = (nb_ech-1)*corrcoef(data);
+%% The hyper-parameters
+nb_var = size(mat,1);
+if flag_corr
+    lambda0 = eye(nb_var);
+    nu0 = nb_var+1;
 else
-    SS = (nb_ech-1)*cov(data);
+    nu0 = nb_var;
+    lambda0 = (nu0-nb_var+1)*diag(diag(SS))/nb_ech;
+end
+
+%% The BIC flag
+if nargin<3
+    flag_bic = false;
 end
 
 %% Hierarchical agglomerative clustering
@@ -111,7 +87,7 @@ part = 1:nb_var; % the partition, into
 % The sum of diagonal log-likelihood
 logp = zeros(1,nb_var);
 for num_v = 1:nb_var
-    logp(num_v) = sub_loglikelihood(squeeze(SS(num_v,num_v)),nb_ech,opt.nu0-(nb_var-1),opt.lambda0(num_v,num_v),opt.flag_bic);
+    logp(num_v) = sub_loglikelihood(squeeze(SS(num_v,num_v)),nb_ech,nu0-(nb_var-1),lambda0(num_v,num_v),flag_bic);
 end
 logprob = zeros(1,nb_iter_max+1);
 logprob(1) = sum(logp);
@@ -127,7 +103,7 @@ for num_v1 = 1:nb_var % Loop over variables
         nb_elem = length(gr);
         SSgr = SS(gr,gr);
         % Compute differences between log-likelihoods
-        logq(num_v1,num_v2) = sub_loglikelihood(SSgr,nb_ech,opt.nu0-(nb_var-nb_elem),opt.lambda0(gr,gr),opt.flag_bic)-logp(num_v1)-logp(num_v2);
+        logq(num_v1,num_v2) = sub_loglikelihood(SSgr,nb_ech,nu0-(nb_var-nb_elem),lambda0(gr,gr),flag_bic)-logp(num_v1)-logp(num_v2);
     end
 end
 
@@ -183,7 +159,7 @@ for num_i = 1:nb_iter_max
         SSgr = SS(gr,gr,:);
             
         % difference of log probability
-        logq(gr1max,list_var == num_g2) = sub_loglikelihood(SSgr,nb_ech,opt.nu0-(nb_var-nb_elem),opt.lambda0(gr,gr),opt.flag_bic)-logp(gr1max)-logp(list_var == num_g2);
+        logq(gr1max,list_var == num_g2) = sub_loglikelihood(SSgr,nb_ech,nu0-(nb_var-nb_elem),lambda0(gr,gr),flag_bic)-logp(gr1max)-logp(list_var == num_g2);
     end
     logq(:,gr1max) = logq(gr1max,:)';
     logq(:,gr2max) = -Inf;
