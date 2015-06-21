@@ -76,8 +76,16 @@ else
     flag_bic = false;
 end
 
-%% the sum of squares
-SS = (nb_ech-1)*mat;
+if flag_corr
+    mat = diag(1./sqrt(diag(mat)))*mat*diag(1./sqrt(diag(mat)));
+end
+
+if flag_bic
+    SS = mat; % the clustering is based on the cov/corr matrix with the BIC approximation
+else
+    %% use the sum of squares
+    SS = (nb_ech-1)*mat;
+end
 
 %% The hyper-parameters
 nb_var = size(mat,1);
