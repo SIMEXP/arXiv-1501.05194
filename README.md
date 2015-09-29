@@ -1,5 +1,5 @@
 # arXiv-1501.05194
-Companion code for the following [PLOS ONE manuscript](http://dx.doi.org/10.3389/fninf.2015.00023). To use, just download the function `bayes_cluster.m`, add it to your matlab or octave path, and it should work. This code implements the 'BayesCov' and 'BayesCorr' methods (depending on`opt.flag_corr`). 
+Companion code for the following [PLOS ONE manuscript](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0137278). To use, just download the function `bayes_cluster.m`, add it to your matlab or octave path, and it should work. This code implements the 'BayesCov' and 'BayesCorr' methods (depending on`opt.flag_corr`). 
 ```matlab
 data = [repmat(randn(100,1),[1 10])+randn(100,10) ...
    repmat(randn(100,1),[1 10])+randn(100,10) ...
